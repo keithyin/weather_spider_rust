@@ -16,15 +16,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Parse an `http::Uri`...
     // let uri = "http://www.weather.com.cn/weather/101121401.shtml".parse::<Uri>()?;
     let city_code = get_city_code(&client, "枣庄").await?;
-    let target_url = format!(
-        "http://www.weather.com.cn/weather1d/{}.shtml#input",
-        city_code
-    );
 
-    let uri = target_url.parse::<Uri>()?;
-    let mut resp = client.get(uri).await?;
-    let body = read_response_body(&mut resp).await?;
-    println!("{}", body);
+    let weather_body = get_weather_v2(&client, &city_code).await?;
+    println!("{}", weather_body);
     Ok(())
 }
 
@@ -80,4 +74,38 @@ async fn get_city_code<'a>(
         }
     }
     Ok(String::from(city_code))
+}
+
+async fn get_weather<'a>(
+    client: &'a Client<HttpConnector>,
+    city_code: &'a str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    // http://d1.weather.com.cn/sk_2d/101121401.html?_=1613291367672
+    let url = format!("http://d1.weather.com.cn/dingzhi/{}.html", city_code);
+
+    let mut parsed_url = Url::parse(&url)?;
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let query = format!("_={}", timestamp.as_millis());
+    parsed_url.set_query(Some(&query));
+    let uri = parsed_url.to_string().parse::<Uri>()?;
+
+    // Await the response...
+    let mut resp = client.get(uri).await?;
+
+    let body = read_response_body(&mut resp).await?;
+    Ok(body)
+}
+
+async fn get_weather_v2<'a>(
+    client: &'a Client<HttpConnector>,
+    city_code: &'a str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let target_url = format!(
+        "http://www.weather.com.cn/weather15d/{}.shtml#input",
+        city_code
+    );
+    let uri = target_url.parse::<Uri>()?;
+    let mut resp = client.get(uri).await?;
+    let body = read_response_body(&mut resp).await?;
+    Ok(body)
 }
