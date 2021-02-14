@@ -20,8 +20,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "http://www.weather.com.cn/weather1d/{}.shtml#input",
         city_code
     );
-    println!("{}", target_url);
 
+    let uri = target_url.parse::<Uri>()?;
+    let mut resp = client.get(uri).await?;
+    let body = read_response_body(&mut resp).await?;
+    println!("{}", body);
     Ok(())
 }
 
@@ -61,13 +64,8 @@ async fn get_city_code<'a>(
     parsed_url.set_query(Some(&query));
     let uri = parsed_url.to_string().parse::<Uri>()?;
 
-    // println!("url:{}", parsed_url);
-    // println!("Uri:{}", uri);
-
     // Await the response...
     let mut resp = client.get(uri).await?;
-
-    println!("Response: {}", resp.status());
 
     let body = read_response_body(&mut resp).await?;
 
