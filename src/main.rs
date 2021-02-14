@@ -1,7 +1,7 @@
 // use http::Uri;
 use hyper::body::HttpBody;
 use hyper::client::HttpConnector;
-use hyper::{Client, Uri};
+use hyper::{Body, Client, Response, Uri};
 use serde_json;
 use serde_json::Value;
 use std::str;
@@ -21,6 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         city_code
     );
     println!("{}", target_url);
+
     Ok(())
 }
 
@@ -29,6 +30,25 @@ fn parse_json(mut body: &str) -> Result<Value, Box<dyn std::error::Error + Send 
     body = body.trim_end_matches(')');
     let parsed = serde_json::from_str(body)?;
     Ok(parsed)
+}
+
+async fn read_response_body(
+    resp: &mut Response<Body>,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let mut body = String::new();
+
+    while let Some(chunk) = resp.body_mut().data().await {
+        let part_bytes = &chunk?;
+        let part_str = match str::from_utf8(part_bytes) {
+            Ok(v) => v,
+            Err(_) => {
+                // stdout().write_all(part_bytes).await?;
+                ""
+            }
+        };
+        body.push_str(part_str);
+    }
+    Ok(body)
 }
 
 async fn get_city_code<'a>(
@@ -49,19 +69,8 @@ async fn get_city_code<'a>(
 
     println!("Response: {}", resp.status());
 
-    let mut body = String::new();
+    let body = read_response_body(&mut resp).await?;
 
-    while let Some(chunk) = resp.body_mut().data().await {
-        let part_bytes = &chunk?;
-        let part_str = match str::from_utf8(part_bytes) {
-            Ok(v) => v,
-            Err(_) => {
-                // stdout().write_all(part_bytes).await?;
-                ""
-            }
-        };
-        body.push_str(part_str);
-    }
     let mut city_code = "";
     let parsed_json = parse_json(&body)?;
     if let Value::Array(ref res) = parsed_json {
