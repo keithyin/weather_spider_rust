@@ -8,20 +8,6 @@ use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // This is where we will setup our HTTP client requests.
-    let client = Client::new();
-
-    // Parse an `http::Uri`...
-    // let uri = "http://www.weather.com.cn/weather/101121401.shtml".parse::<Uri>()?;
-    let city_code = get_city_code(&client, "枣庄").await?;
-
-    let weather_body = get_weather_v2(&client, &city_code).await?;
-    println!("{}", weather_body);
-    Ok(())
-}
-
 fn parse_json(mut body: &str) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
     body = body.trim_start_matches('(');
     body = body.trim_end_matches(')');
@@ -108,4 +94,18 @@ async fn get_weather_v2<'a>(
     let mut resp = client.get(uri).await?;
     let body = read_response_body(&mut resp).await?;
     Ok(body)
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // This is where we will setup our HTTP client requests.
+    let client = Client::new();
+
+    // Parse an `http::Uri`...
+    // let uri = "http://www.weather.com.cn/weather/101121401.shtml".parse::<Uri>()?;
+    let city_code = get_city_code(&client, "枣庄").await?;
+
+    let weather_body = get_weather_v2(&client, &city_code).await?;
+    println!("{}", weather_body);
+    Ok(())
 }
