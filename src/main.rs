@@ -2,11 +2,13 @@
 use hyper::body::HttpBody;
 use hyper::client::HttpConnector;
 use hyper::{Body, Client, Response, Uri};
+use reqwest;
 use serde_json;
 use serde_json::Value;
 use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
+
 fn parse_json(mut body: &str) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
     body = body.trim_start_matches('(');
     body = body.trim_end_matches(')');
@@ -34,19 +36,17 @@ async fn read_response_body(
 }
 
 async fn get_city_code<'a>(
-    client: &'a Client<HttpConnector>,
+    client: &'a reqwest::Client,
     cityname: &'a str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut parsed_url = Url::parse("http://toy1.weather.com.cn/search")?;
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
     let query = format!("cityname={}&_={}", cityname, timestamp.as_millis());
     parsed_url.set_query(Some(&query));
-    let uri = parsed_url.to_string().parse::<Uri>()?;
+    let uri = parsed_url.to_string();
 
     // Await the response...
-    let mut resp = client.get(uri).await?;
-
-    let body = read_response_body(&mut resp).await?;
+    let mut body = client.get(&uri).send().await?.text().await?;
 
     let mut city_code = "";
     let parsed_json = parse_json(&body)?;
@@ -62,7 +62,7 @@ async fn get_city_code<'a>(
 }
 
 async fn get_weather<'a>(
-    client: &'a Client<HttpConnector>,
+    client: &'a reqwest::Client,
     city_code: &'a str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     // http://d1.weather.com.cn/sk_2d/101121401.html?_=1613291367672
@@ -72,33 +72,29 @@ async fn get_weather<'a>(
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
     let query = format!("_={}", timestamp.as_millis());
     parsed_url.set_query(Some(&query));
-    let uri = parsed_url.to_string().parse::<Uri>()?;
+    let uri = parsed_url.to_string();
 
     // Await the response...
-    let mut resp = client.get(uri).await?;
-
-    let body = read_response_body(&mut resp).await?;
+    let body = client.get(&uri).send().await?.text().await?;
     Ok(body)
 }
 
 async fn get_weather_v2<'a>(
-    client: &'a Client<HttpConnector>,
+    client: &'a reqwest::Client,
     city_code: &'a str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let target_url = format!(
         "http://www.weather.com.cn/weather15d/{}.shtml#input",
         city_code
     );
-    let uri = target_url.parse::<Uri>()?;
-    let mut resp = client.get(uri).await?;
-    let body = read_response_body(&mut resp).await?;
+    let body = client.get(&target_url).send().await?.text().await?;
     Ok(body)
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // This is where we will setup our HTTP client requests.
-    let client = Client::new();
+    let client = reqwest::Client::new();
 
     // Parse an `http::Uri`...
     // let uri = "http://www.weather.com.cn/weather/101121401.shtml".parse::<Uri>()?;
