@@ -7,7 +7,6 @@ use serde_json::Value;
 use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
-
 fn parse_json(mut body: &str) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
     body = body.trim_start_matches('(');
     body = body.trim_end_matches(')');
